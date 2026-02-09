@@ -1,0 +1,17 @@
+[project]
+name = "a2ui-server"
+version = "0.1.0"
+description = "A2UI Generative UI chat backend with Alibaba Cloud Qwen"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "httpx>=0.26.0",
+    "python-dotenv>=1.0.0",
+    "sse-starlette>=2.0.0",
+    "openai>=2.16.0",
+]
+
+[tool.uv]
+dev-dependencies = []
