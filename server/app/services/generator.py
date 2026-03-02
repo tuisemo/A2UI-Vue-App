@@ -1,75 +1,122 @@
 """
 A2UI Generator Service - Production-grade LLM interaction and component generation
 """
+
 import json
 import logging
 import os
 from typing import AsyncGenerator
-from openai import AsyncOpenAI
+
 from dotenv import load_dotenv
+from openai import AsyncOpenAI
 
 load_dotenv(override=True)
 logger = logging.getLogger(__name__)
 
 # Streamlined prompt for better LLM compliance
-SYSTEM_PROMPT = """# A2UI Protocol v2
+SYSTEM_PROMPT = """
+# Role: A2UI Protocol Architect
+You are an expert AI interface generator specializing in the A2UI protocol. Your mission is to transform user intent into high-performance, aesthetically pleasing, server-driven UI streams.
 
-## RULES (MUST FOLLOW)
-1. Output ONE JSON object per line (JSONL format)
-2. NO markdown code fences, NO arrays wrapping
-3. Define children components BEFORE parents
-4. ALWAYS start with skeleton → beginRendering → content → beginRendering
-5. Final root component id MUST be "root"
+# 1. CRITICAL PROTOCOL RULES (MUST FOLLOW)
+- **Format**: Output STRICT JSON Lines (JSONL). One valid JSON object per line.
+- **Syntax**: NO Markdown code fences (```json). NO wrapping arrays (`[...]`). NO explanatory text outside JSON.
+- **Topological Sort**: Always define **Child** components BEFORE their **Parent** containers.
+- **Data Typing**: All text strings must be wrapped: `{"literalString": "Value"}` or `{"path": "/data/ref"}`.
+- **IDs**: Use short, descriptive unique string IDs (e.g., `btn_sub`, `card_main`). The final root ID must be `"root"`.
 
-## MESSAGE TYPES
-Component:  {"id":"x","component":{"Type":{...props...}}}
-Render:     {"beginRendering":{"surfaceId":"main","root":"component-id"}}
-Data:       {"dataModelUpdate":{"surfaceId":"main","contents":[{"key":"k","valueString":"v"}]}}
+# 2. STANDARD INTERACTION FLOW
+For every response requiring UI, you MUST follow this exact 4-step sequence:
+1.  **Define Skeleton**: Create a loading/skeleton UI structure.
+2.  **Render Skeleton**: Emit `beginRendering` targeting the skeleton root.
+3.  **Define Content**: Generate the actual UI components (leaves first -> nodes -> root).
+4.  **Render Content**: Emit `beginRendering` targeting the final `"root"`.
 
-## COMPONENTS
-Layout: Column, Row, Card, List
-Content: Text, Icon, Image, Markdown, Divider, Quote, Figure
-Data: Chart, Table, Progress, Rating, Stat, MetricCard, Badge, TagList
-Input: Button, TextField, CheckBox, Slider, Tabs
-Process: Steps, Timeline, Accordion
-Other: Price, Avatar, Alert
+# 3. COMPONENT LIBRARY (Schema & Usage)
 
-## FORMAT EXAMPLES
-Text: {"id":"t","component":{"Text":{"text":{"literalString":"Hello"},"usageHint":"h1"}}}
-Column: {"id":"c","component":{"Column":{"children":{"explicitList":["a","b"]},"alignment":"center"}}}
-Row: {"id":"r","component":{"Row":{"children":{"explicitList":["a","b"]},"distribution":"spaceBetween"}}}
-Card: {"id":"card","component":{"Card":{"child":"content-id"}}}
-Icon: {"id":"i","component":{"Icon":{"name":{"literalString":"star"}}}}
-Image: {"id":"img","component":{"Image":{"url":{"literalString":"https://images.unsplash.com/photo-xxx?w=800"}}}}
-Badge: {"id":"b","component":{"Badge":{"text":{"literalString":"New"},"variant":"success"}}}
-Alert: {"id":"a","component":{"Alert":{"title":{"literalString":"Title"},"message":{"literalString":"Msg"},"variant":"info"}}}
+## Layout & Containers
+- **Column**: `{"id":"c","component":{"Column":{"children":{"explicitList":["id1","id2"]},"alignment":"center","styles":{"gap":8}}}}`
+- **Row**: `{"id":"r","component":{"Row":{"children":{"explicitList":["id1","id2"]},"distribution":"spaceBetween"}}}`
+- **Card**: `{"id":"card","component":{"Card":{"child":"content_id","elevation":2}}}`
+- **Divider**: `{"id":"div","component":{"Divider":{"variant":"fullWidth"}}}`
 
-## DATA BINDING
-Static value: {"text":{"literalString":"Hello"}}
-Dynamic path: {"text":{"path":"/user/name"}}
+## Content & Display
+- **Text**: `{"id":"t","component":{"Text":{"text":{"literalString":"..."},"usageHint":"h1"|"body"|"caption"|"code"}}}`
+- **Icon**: `{"id":"i","component":{"Icon":{"name":{"literalString":"icon_name"}}}}`
+- **Image**: `{"id":"img","component":{"Image":{"url":{"literalString":"https://..."}}}}`
+- **Badge**: `{"id":"bdg","component":{"Badge":{"text":{"literalString":"New"},"variant":"success"|"warning"|"error"}}}`
+- **Alert**: `{"id":"alt","component":{"Alert":{"title":{"literalString":"..."},"message":{"literalString":"..."},"variant":"info"|"warning"}}}`
 
-## STANDARD FLOW (Always follow this pattern)
-{"id":"sk-icon","component":{"Icon":{"name":{"literalString":"hourglass_empty"}}}}
-{"id":"sk-text","component":{"Text":{"text":{"literalString":"加载中..."},"usageHint":"caption"}}}
-{"id":"sk","component":{"Column":{"children":{"explicitList":["sk-icon","sk-text"]},"alignment":"center"}}}
-{"beginRendering":{"surfaceId":"main","root":"sk"}}
-... define your content components here (children before parents) ...
-{"id":"root","component":{"Column":{"children":{"explicitList":["your-content-ids"]}}}}
+## Data Visualization
+- **Stat**: `{"id":"st","component":{"Stat":{"label":{"literalString":"Views"},"value":{"literalString":"1.2k"},"trend":"up"}}}`
+- **Table**: `{"id":"tbl","component":{"Table":{"headers":["Col1"],"rows":[["Val1"]]}}}`
+- **Timeline**: `{"id":"tl","component":{"Timeline":{"items":[{"title":"...","time":"..."}]}}}`
+
+## Input & Actions
+- **Button**: `{"id":"btn","component":{"Button":{"label":{"literalString":"Action"},"actionId":"do_action","variant":"filled"|"outlined"}}}`
+- **TextField**: `{"id":"inp","component":{"TextField":{"label":{"literalString":"Name"},"variable":"user_name"}}}`
+
+# 4. ICON LIBRARY (Material Symbols Only)
+Use ONLY these icons: `hourglass_empty` (loading), `check_circle`, `error`, `info`, `warning`, `star`, `favorite`, `shopping_cart`, `person`, `settings`, `home`, `search`, `menu`, `close`, `add`, `remove`, `edit`, `delete`, `refresh`, `trending_up`, `trending_down`, `payments`, `local_shipping`, `location_on`, `phone`, `schedule`, `wb_sunny`, `cloud`.
+
+# 5. DESIGN BEST PRACTICES
+- **Hierarchy**: Use `h1` for titles, `caption` for metadata. Bold key numbers.
+- **Spacing**: Always use `Column` or `Row` with `gap` (e.g., 4, 8, 16) to prevent clutter.
+- **Feedback**: Use `Alert` components to show success/failure states clearly.
+- **Skeleton**: The skeleton should visually approximate the final layout (e.g., if showing a list, show 3 skeleton rows).
+
+# 6. OUTPUT PATTERN EXAMPLE
+
+User: "Show my order status"
+
+[Output Stream]:
+{"id":"sk_i","component":{"Icon":{"name":{"literalString":"hourglass_empty"}}}}
+{"id":"sk_t","component":{"Text":{"text":{"literalString":"Fetching order..."},"usageHint":"caption"}}}
+{"id":"sk_root","component":{"Column":{"children":{"explicitList":["sk_i","sk_t"]},"alignment":"center"}}}
+{"beginRendering":{"surfaceId":"main","root":"sk_root"}}
+{"id":"ord_t","component":{"Text":{"text":{"literalString":"Order #12345"},"usageHint":"h1"}}}
+{"id":"ord_s","component":{"Badge":{"text":{"literalString":"Shipped"},"variant":"success"}}}
+{"id":"ord_row","component":{"Row":{"children":{"explicitList":["ord_t","ord_s"]},"distribution":"spaceBetween"}}}
+{"id":"trk_b","component":{"Button":{"label":{"literalString":"Track Package"},"actionId":"track_123"}}}
+{"id":"root","component":{"Column":{"children":{"explicitList":["ord_row","trk_b"]},"styles":{"padding":16,"gap":12}}}}
 {"beginRendering":{"surfaceId":"main","root":"root"}}
-
-## ICONS (Material Symbols)
-hourglass_empty, check_circle, error, info, warning, star, favorite, shopping_cart, person, settings, home, search, menu, close, add, remove, edit, delete, refresh, trending_up, trending_down, payments, local_shipping, location_on, phone, schedule, wb_sunny, cloud, restaurant
-
-Now create UI. Start with skeleton, then content. Output JSONL only.
 """
 
 # Supported component types for validation
 SUPPORTED_COMPONENTS = {
-    'Text', 'Icon', 'Image', 'Button', 'Card', 'Column', 'Row', 'List',
-    'Badge', 'Alert', 'Avatar', 'Chart', 'Table', 'Progress', 'Rating',
-    'Stat', 'Steps', 'Timeline', 'Accordion', 'Price', 'TagList',
-    'MetricCard', 'Figure', 'Quote', 'Markdown', 'Divider', 'TextField',
-    'CheckBox', 'Slider', 'Tabs', 'Video', 'Audio', 'Conditional'
+    "Text",
+    "Icon",
+    "Image",
+    "Button",
+    "Card",
+    "Column",
+    "Row",
+    "List",
+    "Badge",
+    "Alert",
+    "Avatar",
+    "Chart",
+    "Table",
+    "Progress",
+    "Rating",
+    "Stat",
+    "Steps",
+    "Timeline",
+    "Accordion",
+    "Price",
+    "TagList",
+    "MetricCard",
+    "Figure",
+    "Quote",
+    "Markdown",
+    "Divider",
+    "TextField",
+    "CheckBox",
+    "Slider",
+    "Tabs",
+    "Video",
+    "Audio",
+    "Conditional",
 }
 
 
@@ -108,9 +155,14 @@ class A2UIGeneratorService:
 
         # Check if component type is supported
         if comp_type not in SUPPORTED_COMPONENTS:
-            logger.warning(f"Unsupported component type: {comp_type}, converting to Text")
+            logger.warning(
+                f"Unsupported component type: {comp_type}, converting to Text"
+            )
             comp["component"] = {
-                "Text": {"text": {"literalString": f"[{comp_type}]"}, "usageHint": "caption"}
+                "Text": {
+                    "text": {"literalString": f"[{comp_type}]"},
+                    "usageHint": "caption",
+                }
             }
             return comp
 
@@ -204,19 +256,27 @@ class A2UIGeneratorService:
                     model=self.model,
                     messages=[
                         {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": f"Create UI for: {user_query}"}
+                        {
+                            "role": "user",
+                            "content": f'# Current Request\n\nUser Input: "{user_query}"\n\nGenerate the A2UI JSONL stream now.',
+                        },
                     ],
                     stream=True,
-                    temperature=0.7
+                    temperature=0.7,
                 )
             except Exception as e:
-                logger.warning(f"Standard call failed: {e}, retrying with minimal params")
+                logger.warning(
+                    f"Standard call failed: {e}, retrying with minimal params"
+                )
                 stream = await self.client.chat.completions.create(
                     model=self.model,
                     messages=[
-                        {"role": "user", "content": f"{SYSTEM_PROMPT}\n\nCreate UI for: {user_query}"}
+                        {
+                            "role": "user",
+                            "content": f"{SYSTEM_PROMPT}\n\nCreate UI for: {user_query}",
+                        }
                     ],
-                    stream=True
+                    stream=True,
                 )
 
             buffer = ""
@@ -235,7 +295,7 @@ class A2UIGeneratorService:
                 while "\n" in buffer:
                     line, buffer = buffer.split("\n", 1)
                     line = line.strip()
-                    
+
                     # Clean markdown artifacts
                     if line.startswith("```"):
                         continue
@@ -246,7 +306,7 @@ class A2UIGeneratorService:
                     try:
                         parsed = json.loads(line)
                         validated = self._validate_message(parsed)
-                        
+
                         if not validated:
                             logger.debug(f"Invalid message skipped: {line[:100]}")
                             continue
@@ -275,7 +335,12 @@ class A2UIGeneratorService:
                         # Handle component
                         comp_id = validated.get("id")
                         if comp_id and comp_id not in sent_ids:
-                            msg = {"surfaceUpdate": {"surfaceId": "main", "components": [validated]}}
+                            msg = {
+                                "surfaceUpdate": {
+                                    "surfaceId": "main",
+                                    "components": [validated],
+                                }
+                            }
                             yield f"data: {json.dumps(msg)}\n\n"
                             sent_ids.add(comp_id)
                             component_count += 1
@@ -296,7 +361,12 @@ class A2UIGeneratorService:
                                 if validated["beginRendering"].get("root") == "root":
                                     has_final_render = True
                             elif "id" in validated and validated["id"] not in sent_ids:
-                                msg = {"surfaceUpdate": {"surfaceId": "main", "components": [validated]}}
+                                msg = {
+                                    "surfaceUpdate": {
+                                        "surfaceId": "main",
+                                        "components": [validated],
+                                    }
+                                }
                                 yield f"data: {json.dumps(msg)}\n\n"
                                 component_count += 1
                     except:
@@ -308,7 +378,9 @@ class A2UIGeneratorService:
                 yield f"data: {json.dumps(final_render)}\n\n"
                 logger.info("Fallback: sent final beginRendering")
 
-            logger.info(f"Generation complete: {component_count} components, {render_count} renders")
+            logger.info(
+                f"Generation complete: {component_count} components, {render_count} renders"
+            )
             yield "data: [DONE]\n\n"
 
         except Exception as e:
@@ -320,15 +392,30 @@ class A2UIGeneratorService:
     def _get_error_ui(self, error: str) -> dict:
         return {
             "a2ui": [
-                {"surfaceUpdate": {"surfaceId": "main", "components": [
-                    {"id": "alert", "component": {"Alert": {
-                        "title": {"literalString": "Error"},
-                        "message": {"literalString": error[:200]},
-                        "variant": "error"
-                    }}},
-                    {"id": "root", "component": {"Column": {"children": {"explicitList": ["alert"]}}}}
-                ]}},
-                {"beginRendering": {"surfaceId": "main", "root": "root"}}
+                {
+                    "surfaceUpdate": {
+                        "surfaceId": "main",
+                        "components": [
+                            {
+                                "id": "alert",
+                                "component": {
+                                    "Alert": {
+                                        "title": {"literalString": "Error"},
+                                        "message": {"literalString": error[:200]},
+                                        "variant": "error",
+                                    }
+                                },
+                            },
+                            {
+                                "id": "root",
+                                "component": {
+                                    "Column": {"children": {"explicitList": ["alert"]}}
+                                },
+                            },
+                        ],
+                    }
+                },
+                {"beginRendering": {"surfaceId": "main", "root": "root"}},
             ]
         }
 
