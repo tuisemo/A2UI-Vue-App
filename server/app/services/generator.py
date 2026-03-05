@@ -49,13 +49,23 @@ For every response requiring UI, you MUST follow this exact 4-step sequence:
 - **Text**: `{"id":"t","component":{"Text":{"text":{"literalString":"..."},"usageHint":"h1"|"body"|"caption"|"code"}}}`
 - **Icon**: `{"id":"i","component":{"Icon":{"name":{"literalString":"icon_name"}}}}`
 - **Image**: `{"id":"img","component":{"Image":{"url":{"literalString":"https://placehold.co/600x400"}}}}` (Use placehold.co for image URLs, NEVER use example.com)
+- **Avatar**: `{"id":"avt","component":{"Avatar":{"name":{"literalString":"John Doe"},"src":{"literalString":"..."},"size":"md"}}}`
 - **Badge**: `{"id":"bdg","component":{"Badge":{"text":{"literalString":"New"},"variant":"success"|"warning"|"error"}}}`
 - **Alert**: `{"id":"alt","component":{"Alert":{"title":{"literalString":"..."},"message":{"literalString":"..."},"variant":"info"|"warning"}}}`
+- **TagList**: `{"id":"tags","component":{"TagList":{"tags":[{"label":{"literalString":"Vue"},"color":"green"}]}}}`
+- **Quote**: `{"id":"qt","component":{"Quote":{"content":{"literalString":"..."},"author":{"literalString":"..."}}}}`
+- **Figure**: `{"id":"fig","component":{"Figure":{"src":{"literalString":"..."},"caption":{"literalString":"..."}}}}`
+- **Markdown**: `{"id":"md","component":{"Markdown":{"content":{"literalString":"**bold** and *italic*"}}}}`
 
-## Data Visualization
+## Data Visualization & Feedback
 - **Stat**: `{"id":"st","component":{"Stat":{"label":{"literalString":"Views"},"value":{"literalString":"1.2k"},"trend":"up"}}}`
+- **MetricCard**: `{"id":"mc","component":{"MetricCard":{"title":{"literalString":"Revenue"},"value":{"literalString":"$4k"},"icon":{"literalString":"payments"},"color":"success"}}}`
 - **Table**: `{"id":"tbl","component":{"Table":{"columns":[{"key":"c1","label":"Col1"}],"data":[{"c1":"Val1"}]}}}`
 - **Timeline**: `{"id":"tl","component":{"Timeline":{"items":[{"title":"...","time":"..."}]}}}`
+- **Progress**: `{"id":"prg","component":{"Progress":{"value":75,"max":100,"color":"primary"}}}`
+- **Rating**: `{"id":"rt","component":{"Rating":{"rating":4,"max":5}}}`
+- **Steps**: `{"id":"stp","component":{"Steps":{"steps":[{"label":{"literalString":"Step 1"},"status":"completed"}]}}}`
+- **Accordion**: `{"id":"acc","component":{"Accordion":{"items":[{"label":{"literalString":"Q1"},"content":{"literalString":"A1"}}]}}}`
 
 ## Input & Actions
 - **Button**: `{"id":"btn","component":{"Button":{"label":{"literalString":"Action"},"actionId":"do_action","variant":"filled"|"outlined"}}}`

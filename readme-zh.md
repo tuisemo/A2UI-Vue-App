@@ -39,6 +39,30 @@ graph TD
 - **标准纯文本场景 (`StandardChatNode`)**：当下游节点读取到 intent 为 `'chat'` 时，文本节点接管流，而 UI 节点会通过前置守卫 (`if context.get('intent') != 'chat': return`) 直接跳过执行。此时后端向前端流式传输 Markdown 字符串，由 `A2Markdown.vue` 直接承载。
 - **生成式组件场景 (`ComplexUINode`)**：当用户的表述涉及数据可视化、复杂排版（如“帮我画一个订单图”），intent 为 `'ui'`。UI 生成管线接管，唤起极为苛刻的 `SYSTEM_PROMPT` 锁，强制输出嵌套的 JSON Schema。
 
+### UI 组件数据契约 (Prompt ↔ Zod ↔ Vue)
+
+在生成式 UI 领域，最大的痛点就是“如何保证大模型精准输出前端组件所需要的参数结构”。A2UI 采取了极度严谨的三层“数据契约”模型来进行强制约束：
+
+1. **后端提示词模板定调 (`generator.py`)**: 
+   `SYSTEM_PROMPT` 会用 Few-Shot 的方式，穷举所有组件的 JSON 格式告诉大模型。例如，要想在屏幕画一个徽章，AI 必须严格输出：
+   `{"id":"bdg", "component": {"Badge": {"text": {"literalString": "New"}, "variant": "success"}}}`
+   *注*：这里采用 `{"literalString": "内容"}` 的嵌套包装，是 A2UI 的协议级规范，用于前端区分该字段是静态写死的字符串，还是动态绑定的变量引用。
+
+2. **Zod 模式护城河验证 (`a2uiSchema.ts`)**:
+   在 Vue 开始渲染之前，流式下发的碎片会被组装，并撞击在前端定义的严格 Zod Schema 墙上：
+   ```typescript
+   const BadgeComponent = z.object({
+       Badge: z.object({
+           text: z.object({ literalString: z.string() }).strict(),
+           variant: z.enum(['success', 'warning', 'error', 'neutral']).optional()
+       }).passthrough()
+   })
+   ```
+   **大模型防幻觉自愈机制 (Self-Healing)：** 大语言模型具有不可控性（例如经常忘写 `literalString`，或者把进度条编造为 `<ProgressBar>` 而不是 `<Progress>`）。因此在送入 Zod 验证前，系统内建了 `fixComponentData()` 拦截器，利用脏检查将上述幻觉偷偷纠正为完全符合 Zod 标准的格式结构，保障应用不会因为 AI 犯蠢而突然白屏报错。
+
+3. **Vue 原生接收层 (`A2Badge.vue`)**:
+   当前两步校验通过后，`ComponentRenderer.vue` 会毫无保留地使用 `v-bind="component.Badge"` 语法，把净化的字典一把塞给原生的 Vue 组件。底层的 `A2Badge.vue` 只需要声明 `defineProps<{ text?: any, variant?: string }>()` 即可，它完全无需关心自己的数据是来自于后端手写 API，还是由 AI 每秒流式吐出来的。
+
 ### 应用完整业务流程与整体实现技术路径
 
 A2UI 的技术精髓在于如何将原本不可控的大模型乱码词元 (Tokens) 安全、快速地转化为真实的客户端原生组件。这里是系统的一处完整请求链路的深入剖析：
