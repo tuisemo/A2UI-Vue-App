@@ -1,0 +1,44 @@
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "sk_i", "component": {"Icon": {"name": {"literalString": "hourglass_empty"}}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "sk_t", "component": {"Text": {"text": {"literalString": "\u6b63\u5728\u67e5\u8be2\u5317\u4eac\u5929\u6c14..."}, "usageHint": "caption"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "sk_root", "component": {"Column": {"children": {"explicitList": ["sk_i", "sk_t"]}, "alignment": "center", "styles": {"gap": 8}}}}]}}
+
+data: {"beginRendering": {"surfaceId": "main", "root": "sk_root"}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "city_t", "component": {"Text": {"text": {"literalString": "\u5317\u4eac"}, "usageHint": "h1"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "cond_t", "component": {"Text": {"text": {"literalString": "\u6674"}, "usageHint": "body"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "temp_t", "component": {"Text": {"text": {"literalString": "28\u00b0C"}, "usageHint": "h1"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "icon_w", "component": {"Icon": {"name": {"literalString": "wb_sunny"}}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "header_row", "component": {"Row": {"children": {"explicitList": ["city_t", "icon_w"]}, "distribution": "spaceBetween"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "humid_lbl", "component": {"Text": {"text": {"literalString": "\u6e7f\u5ea6"}, "usageHint": "caption"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "humid_val", "component": {"Text": {"text": {"literalString": "45%"}, "usageHint": "body"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "humid_row", "component": {"Row": {"children": {"explicitList": ["humid_lbl", "humid_val"]}, "distribution": "spaceBetween"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "wind_lbl", "component": {"Text": {"text": {"literalString": "\u98ce\u901f"}, "usageHint": "caption"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "wind_val", "component": {"Text": {"text": {"literalString": "12 km/h"}, "usageHint": "body"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "wind_row", "component": {"Row": {"children": {"explicitList": ["wind_lbl", "wind_val"]}, "distribution": "spaceBetween"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "info_col", "component": {"Column": {"children": {"explicitList": ["cond_t", "temp_t", "humid_row", "wind_row"]}, "styles": {"gap": 12}}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "content_row", "component": {"Row": {"children": {"explicitList": ["header_row", "info_col"]}, "styles": {"gap": 16}}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "divider", "component": {"Divider": {"variant": "fullWidth"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "last_upd", "component": {"Text": {"text": {"literalString": "\u66f4\u65b0\u4e8e 10:30"}, "usageHint": "caption"}}}]}}
+
+data: {"surfaceUpdate": {"surfaceId": "main", "components": [{"id": "root", "component": {"Column": {"children": {"explicitList": ["content_row", "divider", "last_upd"]}, "styles": {"padding": 16, "gap": 16}}}}]}}
+
+data: {"beginRendering": {"surfaceId": "main", "root": "root"}}
+
+data: [DONE]
+

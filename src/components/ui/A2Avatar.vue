@@ -19,10 +19,10 @@ const getInitials = (name: string) => {
 
 <template>
   <div :class="[
-    'rounded-full overflow-hidden flex items-center justify-center bg-slate-200 text-slate-600 font-semibold',
+    'rounded-full overflow-hidden flex items-center justify-center bg-slate-100 text-slate-600 font-medium ring-2 ring-white shadow-sm',
     sizeClasses[size || 'md']
   ]">
-    <img v-if="src" :src="src" :alt="name" class="w-full h-full object-cover" />
+    <img v-if="src" :src="src" :alt="name" class="w-full h-full object-cover" @error="($event.target as HTMLImageElement).src = 'https://placehold.co/100x100?text=User'" />
     <span v-else-if="name">{{ getInitials(name) }}</span>
     <span v-else class="material-symbols-outlined">person</span>
   </div>

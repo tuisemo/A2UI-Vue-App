@@ -18,6 +18,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  uiState?: A2UIState
 }
 
 // Supported Component Types (30+ components)
@@ -38,3 +39,12 @@ export type ComponentType =
   | 'Steps' | 'Timeline' | 'Accordion'
   // E-commerce
   | 'Price'
+
+// User Action type
+export interface UserAction {
+  name: string
+  surfaceId: string
+  sourceComponentId: string
+  timestamp: string
+  context?: Record<string, any>
+}

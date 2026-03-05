@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 递归组件渲染引擎 (Recursive Component Renderer)
+ * 核心功能：根据传入的组件 ID 和所在对话的消息 ID，从 Pinia Store 中提取实时的组件树结构。
+ * 利用 `resolveValue` 解析动态绑定和字面量，最后利用 `<ComponentRenderer />` 自己递归渲染所有子节点 (Children)。
+ */
 import { computed } from "vue";
 import { useA2UIStore } from "@/stores/a2ui";
 import A2Chart from "@/components/ui/A2Chart.vue";
@@ -18,6 +23,7 @@ import A2TagList from "@/components/ui/A2TagList.vue";
 import A2MetricCard from "@/components/ui/A2MetricCard.vue";
 import A2Figure from "@/components/ui/A2Figure.vue";
 import A2Quote from "@/components/ui/A2Quote.vue";
+import A2Grid from "@/components/ui/A2Grid.vue"; // Added A2Grid import
 
 const props = defineProps<{ id: string; msgId: string }>();
 const emit = defineEmits<{ (e: "action", action: any): void }>();
@@ -28,6 +34,9 @@ const component = computed(() => store.getComponent(props.msgId, props.id));
 const type = computed(() => component.value?.type || null);
 const p = computed(() => component.value?.props || {});
 const children = computed(() => component.value?.children || []);
+
+// Track if this specific component is actively awaiting an LLM response from an action
+const isPending = computed(() => store.pendingActionIds?.has(props.id));
 
 // Resolve value from literalString or path binding (supports any type)
 function resolveValue(val: any, defaultVal: any = ''): any {
@@ -42,7 +51,7 @@ function resolveValue(val: any, defaultVal: any = ''): any {
 
 const layoutClasses = computed(() => {
     const classes = [
-        type.value === "Column" ? "flex-col" : "flex-row",
+        type.value === "Column" ? "flex-col" : "flex-row flex-wrap",
         "flex gap-4 w-full",
     ];
     if (p.value.alignment === "center") classes.push("items-center");
@@ -71,14 +80,48 @@ const textClasses = computed(() => {
 });
 
 const handleAction = () => {
-    if (p.value.action)
-        emit("action", { ...p.value.action, sourceId: props.id });
+    if (p.value.action) {
+        const action = { ...p.value.action, sourceId: props.id };
+        // Send action to backend via store
+        store.sendUserAction(action);
+        // Also emit for local handling if needed
+        emit("action", action);
+    } else if (p.value.actionId) {
+        const action = { name: p.value.actionId, sourceId: props.id };
+        store.sendUserAction(action);
+        emit("action", action);
+    }
+};
+
+// Handle input changes for form components
+const handleInputChange = (value: any, variable?: string) => {
+    if (variable) {
+        // Update data model via path binding
+        store.setDataAtPath(props.msgId, variable, value);
+    }
+};
+
+// Computed for v-model binding (for TextField)
+const inputValue = computed({
+    get: () => resolveValue(p.value.value, ''),
+    set: (value) => handleInputChange(value, p.value.variable)
+});
+
+// Check if a string is actually a component ID by probing the store
+const isComponentId = (val: any) => {
+    if (typeof val !== 'string') return false;
+    return !!store.getComponent(props.msgId, val);
 };
 </script>
 
 <template>
     <Transition name="fade" mode="out-in" appear>
-        <div :key="id" class="w-full">
+        <div :key="id" class="w-full relative" :class="{ 'opacity-70 pointer-events-none': isPending }">
+            <!-- Local Loading Overlay -->
+            <div v-if="isPending" class="absolute inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-[2px] rounded-lg">
+                <span class="material-symbols-outlined animate-spin text-slate-700 text-2xl">progress_activity</span>
+            </div>
+
             <div v-if="!component" class="hidden"></div>
 
             <!-- Text -->
@@ -97,9 +140,10 @@ const handleAction = () => {
             <!-- Button -->
             <button
                 v-else-if="type === 'Button'"
-                :class="p.primary ? 'btn-primary' : 'btn-secondary'"
+                :class="(p.variant === 'outlined' || p.primary === false) ? 'btn-secondary' : 'btn-primary'"
                 @click="handleAction"
             >
+                <span v-if="p.label">{{ resolveValue(p.label) }}</span>
                 <ComponentRenderer
                     v-for="cid in children"
                     :key="cid"
@@ -154,6 +198,7 @@ const handleAction = () => {
                 :src="resolveValue(p.url)"
                 class="w-full rounded-xl object-cover aspect-video"
                 loading="lazy"
+                @error="($event.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Image+Not+Found'"
             />
 
             <!-- Divider -->
@@ -171,6 +216,7 @@ const handleAction = () => {
                     {{ resolveValue(p.label) }}
                 </label>
                 <input
+                    v-model="inputValue"
                     type="text"
                     class="input-field"
                     :placeholder="resolveValue(p.placeholder)"
@@ -185,6 +231,8 @@ const handleAction = () => {
                 <input
                     type="checkbox"
                     class="w-5 h-5 accent-slate-900 rounded"
+                    :checked="resolveValue(p.value, false)"
+                    @change="handleInputChange(($event.target as HTMLInputElement).checked, p.variable)"
                 />
                 <span class="text-slate-700">{{ resolveValue(p.label) }}</span>
             </label>
@@ -193,14 +241,15 @@ const handleAction = () => {
             <div v-else-if="type === 'Slider'" class="w-full">
                 <div class="flex justify-between text-sm text-slate-600 mb-2">
                     <span>{{ resolveValue(p.label) }}</span>
-                    <span class="font-medium">{{ p.value || 50 }}</span>
+                    <span class="font-medium">{{ resolveValue(p.value, 50) }}</span>
                 </div>
                 <input
                     type="range"
                     class="w-full accent-slate-900"
                     :min="p.min || 0"
                     :max="p.max || 100"
-                    :value="p.value || 50"
+                    :value="resolveValue(p.value, 50)"
+                    @input="handleInputChange(Number(($event.target as HTMLInputElement).value), p.variable)"
                 />
             </div>
 
@@ -247,6 +296,16 @@ const handleAction = () => {
                 <source :src="resolveValue(p.url)" type="audio/mpeg" />
             </audio>
 
+            <!-- Grid -->
+            <A2Grid
+                v-else-if="type === 'Grid'"
+                :children="p.children"
+                :cols="p.cols"
+                :gap="p.gap"
+                :msgId="msgId"
+                @action="$emit('action', $event)"
+            />
+
             <!-- Chart -->
             <A2Chart
                 v-else-if="type === 'Chart'"
@@ -266,7 +325,38 @@ const handleAction = () => {
                 :columns="p.columns"
                 :data="p.data"
                 :striped="p.striped"
-            />
+            >
+                <template #cell="{ value }">
+                    <template v-if="Array.isArray(value)">
+                        <div class="flex gap-2 items-center flex-wrap">
+                            <template v-for="(v, i) in value" :key="i">
+                                <template v-if="typeof v === 'object' && v !== null">
+                                    <ComponentRenderer v-if="v.componentRef && isComponentId(v.componentRef)" :id="v.componentRef" :msg-id="msgId" @action="$emit('action', $event)" />
+                                    <span v-else-if="v.literalString !== undefined">{{ v.literalString }}</span>
+                                    <span v-else-if="v.path !== undefined">[{{ v.path }}]</span>
+                                    <span v-else-if="v.componentRef" class="animate-pulse text-slate-300">Loading...</span>
+                                    <span v-else>{{ JSON.stringify(v) }}</span>
+                                </template>
+                                <template v-else>
+                                    <ComponentRenderer v-if="isComponentId(v)" :id="v" :msg-id="msgId" @action="$emit('action', $event)" />
+                                    <span v-else>{{ v }}</span>
+                                </template>
+                            </template>
+                        </div>
+                    </template>
+                    <template v-else-if="typeof value === 'object' && value !== null">
+                        <ComponentRenderer v-if="value.componentRef && isComponentId(value.componentRef)" :id="value.componentRef" :msg-id="msgId" @action="$emit('action', $event)" />
+                        <span v-else-if="value.literalString !== undefined">{{ value.literalString }}</span>
+                        <span v-else-if="value.path !== undefined">[{{ value.path }}]</span>
+                        <span v-else-if="value.componentRef" class="animate-pulse text-slate-400">Loading...</span>
+                        <span v-else>{{ JSON.stringify(value) }}</span>
+                    </template>
+                    <template v-else>
+                        <ComponentRenderer v-if="isComponentId(value)" :id="value" :msg-id="msgId" @action="$emit('action', $event)" />
+                        <span v-else>{{ value }}</span>
+                    </template>
+                </template>
+            </A2Table>
 
             <!-- Progress -->
             <A2Progress

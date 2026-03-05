@@ -59,6 +59,14 @@ const RowComponent = z.object({
     }).passthrough()
 })
 
+const GridComponent = z.object({
+    Grid: z.object({
+        children: ChildrenRef.optional(),
+        cols: z.number().optional(),
+        gap: z.number().optional()
+    }).passthrough()
+})
+
 const CardComponent = z.object({
     Card: z.object({
         child: z.string().optional()
@@ -88,6 +96,7 @@ const ComponentType = z.union([
     DividerComponent,
     ColumnComponent,
     RowComponent,
+    GridComponent,
     CardComponent,
     ListComponent,
     ButtonComponent,
@@ -139,11 +148,11 @@ export type ServerToClientMessageType = z.infer<typeof ServerToClientMessage>
  */
 export function fixComponentData(comp: any): any {
     if (!comp?.component) return comp
-    
+
     const component = comp.component
     const type = Object.keys(component)[0]
     const props = component[type]
-    
+
     if (!props) return comp
 
     // Fix Icon: various wrong formats -> {name: {literalString: "..."}}
@@ -181,6 +190,14 @@ export function fixComponentData(comp: any): any {
         }
     }
 
+    // Fix ProgressBar -> Progress (LLM sometimes hallucinates the name)
+    if (type === 'ProgressBar') {
+        const newComponent: any = {
+            Progress: props
+        }
+        comp.component = newComponent
+    }
+
     return comp
 }
 
@@ -189,12 +206,12 @@ export function fixComponentData(comp: any): any {
  */
 export function validateComponents(components: any[]): ComponentInstanceType[] {
     const validated: ComponentInstanceType[] = []
-    
+
     for (const comp of components) {
         try {
             // First fix common issues
             const fixed = fixComponentData(comp)
-            
+
             // Then validate
             const result = ComponentInstance.safeParse(fixed)
             if (result.success) {
@@ -210,7 +227,7 @@ export function validateComponents(components: any[]): ComponentInstanceType[] {
             console.warn('Component processing error:', e)
         }
     }
-    
+
     return validated
 }
 
@@ -241,7 +258,7 @@ export function parseA2UIMessage(data: any): ServerToClientMessageType | null {
         if (result.success) {
             return result.data
         }
-        
+
         console.warn('Message validation failed:', result.error.message)
         return null
     } catch (e) {

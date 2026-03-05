@@ -35,7 +35,9 @@ defineProps<{
             :key="col.key"
             class="px-4 py-3 text-sm text-slate-600"
           >
-            {{ row[col.key] }}
+            <slot name="cell" :value="row[col.key]" :row="row" :column="col">
+              {{ row[col.key] }}
+            </slot>
           </td>
         </tr>
       </tbody>

@@ -1,4 +1,6 @@
 node_modules/
-__pycache_
+__pycache__/
+*/__pycache__/
 .env
 .venv
+.factory

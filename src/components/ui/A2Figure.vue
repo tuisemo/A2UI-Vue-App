@@ -22,6 +22,7 @@ const aspectClasses = {
         :alt="alt || ''" 
         :class="['w-full object-cover', aspectClasses[aspectRatio || 'video']]"
         loading="lazy"
+        @error="($event.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Image+Not+Found'"
       />
     </div>
     <figcaption v-if="caption" class="mt-2 text-sm text-slate-500 text-center">{{ caption }}</figcaption>
